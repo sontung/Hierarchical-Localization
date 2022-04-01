@@ -227,9 +227,9 @@ def main(conf: Dict,
     skip_names = set(list_h5_names(feature_path)
                      if feature_path.exists() and not overwrite else ())
 
-    ############################
-    # skips only database images
-    ############################
+    ####################################
+    # skips only database images #######
+    ####################################
     skip_names2 = []
     image_list = []
     if len(skip_names) > 0:
@@ -238,13 +238,14 @@ def main(conf: Dict,
                 skip_names2.append(name)
             else:
                 image_list.append(name)
+    else:
+        image_list = None
     skip_names = skip_names2[:]
-    ############################
-    ############################
+    ####################################
+    ####################################
 
     loader = ImageDataset(image_dir, conf['preprocessing'], image_list)
     loader = torch.utils.data.DataLoader(loader, num_workers=1)
-
     if set(loader.dataset.names).issubset(set(skip_names)):
         logger.info('Skipping the extraction.')
         return feature_path
@@ -256,7 +257,6 @@ def main(conf: Dict,
     for data in tqdm(loader):
         name = data['name'][0]  # remove batch dimension
         if name in skip_names:
-            print(name)
             continue
 
         pred = model(map_tensor(data, lambda x: x.to(device)))
