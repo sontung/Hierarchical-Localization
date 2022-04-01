@@ -1,4 +1,6 @@
 import argparse
+import sys
+
 import numpy as np
 from pathlib import Path
 from collections import defaultdict
@@ -75,7 +77,6 @@ def pose_from_cluster(
 
     kpq = get_keypoints(features_path, qname)
     kpq += 0.5  # COLMAP coordinates
-
     kp_idx_to_3D = defaultdict(list)
     kp_idx_to_3D_to_db = defaultdict(lambda: defaultdict(list))
     num_matches = 0
@@ -88,6 +89,7 @@ def pose_from_cluster(
                                  for p in image.points2D])
 
         matches, _ = get_matches(matches_path, qname, image.name)
+
         matches = matches[points3D_ids[matches[:, 1]] != -1]
         num_matches += len(matches)
         for idx, m in matches:

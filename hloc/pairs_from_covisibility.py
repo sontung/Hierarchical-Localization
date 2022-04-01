@@ -8,9 +8,9 @@ from . import logger
 from .utils.read_write_model import read_model
 
 
-def main(model, output, num_matched):
+def main(model, output, num_matched, db_prefix=""):
     logger.info('Reading the COLMAP model...')
-    cameras, images, points3D = read_model(model)
+    cameras, images, points3D = read_model(model, db_prefix=db_prefix)
 
     logger.info('Extracting image pairs from covisibility info...')
     pairs = []

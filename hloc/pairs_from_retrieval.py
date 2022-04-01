@@ -1,4 +1,5 @@
 import argparse
+import sys
 from pathlib import Path
 from typing import Optional
 import h5py
@@ -88,8 +89,11 @@ def main(descriptors, output, num_matched,
     if len(db_names) == 0:
         raise ValueError('Could not find any database image.')
     query_names = parse_names(query_prefix, query_list, query_names_h5)
-
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # print(db_names)
+    # print(len(db_names))
+    # print(query_names)
+    # sys.exit()
     db_desc = get_descriptors(db_names, db_descriptors, name2db)
     query_desc = get_descriptors(query_names, descriptors)
     sim = torch.einsum('id,jd->ij', query_desc.to(device), db_desc.to(device))

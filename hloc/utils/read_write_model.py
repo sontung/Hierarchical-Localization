@@ -418,7 +418,7 @@ def detect_model_format(path, ext):
     return False
 
 
-def read_model(path, ext=""):
+def read_model(path, ext="", db_prefix=""):
     # try to detect the extension automatically
     if ext == "":
         if detect_model_format(path, ".bin"):
@@ -443,6 +443,10 @@ def read_model(path, ext=""):
         cameras = read_cameras_binary(os.path.join(path, "cameras" + ext))
         images = read_images_binary(os.path.join(path, "images" + ext))
         points3D = read_points3D_binary(os.path.join(path, "points3D") + ext)
+    if len(db_prefix) > 0:
+        for im_id in images:
+            image = images[im_id]
+            images[im_id] = images[im_id]._replace(name=f"{db_prefix}/{image.name}")
     return cameras, images, points3D
 
 

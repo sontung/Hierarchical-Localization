@@ -46,6 +46,7 @@ def create_db_from_model(reconstruction, database_path):
 
     db.commit()
     db.close()
+
     return {image.name: i for i, image in reconstruction.images.items()}
 
 
