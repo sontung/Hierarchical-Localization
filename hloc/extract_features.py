@@ -299,6 +299,87 @@ def main(conf: Dict,
     return feature_path
 
 
+@torch.no_grad()
+@profile
+def main_wo_model_loading(
+        model,
+        device,
+        skip_names,
+        conf: Dict,
+        image_dir: Path,
+        as_half: bool = True,
+        feature_path: Optional[Path] = None) -> Path:
+    logger.info('Extracting local features with configuration:'
+                f'\n{pprint.pformat(conf)}')
+
+    ####################################
+    # skips only database images #######
+    ####################################
+    skip_names2 = []
+    image_list = []
+    if len(skip_names) > 0:
+        for name in skip_names:
+            if "db" in name:
+                skip_names2.append(name)
+            else:
+                image_list.append(name)
+    else:
+        image_list = None
+    skip_names = skip_names2[:]
+    ####################################
+    ####################################
+
+    loader = ImageDataset(image_dir, conf['preprocessing'], image_list)
+    loader = torch.utils.data.DataLoader(loader, num_workers=1)
+    if set(loader.dataset.names).issubset(set(skip_names)):
+        logger.info('Skipping the extraction.')
+        return feature_path
+
+    for data in tqdm(loader):
+        name = data['name'][0]  # remove batch dimension
+        if name in skip_names:
+            continue
+
+        pred = model(map_tensor(data, lambda x: x.to(device)))
+        pred = {k: v[0].cpu().numpy() for k, v in pred.items()}
+
+        pred['image_size'] = original_size = data['original_size'][0].numpy()
+        if 'keypoints' in pred:
+            size = np.array(data['image'].shape[-2:][::-1])
+            scales = (original_size / size).astype(np.float32)
+            pred['keypoints'] = (pred['keypoints'] + .5) * scales[None] - .5
+            # add keypoint uncertainties scaled to the original resolution
+            uncertainty = getattr(model, 'detection_noise', 1) * scales.mean()
+
+        if as_half:
+            for k in pred:
+                dt = pred[k].dtype
+                if (dt == np.float32) and (dt != np.float16):
+                    pred[k] = pred[k].astype(np.float16)
+
+        with h5py.File(str(feature_path), 'a') as fd:
+            try:
+                if name in fd:
+                    del fd[name]
+                grp = fd.create_group(name)
+                for k, v in pred.items():
+                    grp.create_dataset(k, data=v)
+                if 'keypoints' in pred:
+                    grp['keypoints'].attrs['uncertainty'] = uncertainty
+            except OSError as error:
+                if 'No space left on device' in error.args[0]:
+                    logger.error(
+                        'Out of disk space: storing features on disk can take '
+                        'significant space, did you enable the as_half flag?')
+                    del grp, fd[name]
+                raise error
+
+        del pred
+
+    logger.info('Finished exporting features.')
+    return feature_path
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--image_dir', type=Path, required=True)
