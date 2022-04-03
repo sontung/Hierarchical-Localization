@@ -300,7 +300,6 @@ def main(conf: Dict,
 
 
 @torch.no_grad()
-@profile
 def main_wo_model_loading(
         model,
         device,
