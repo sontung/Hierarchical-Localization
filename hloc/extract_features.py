@@ -1,4 +1,6 @@
 import argparse
+import sys
+
 import torch
 from pathlib import Path
 from typing import Dict, List, Union, Optional
@@ -308,8 +310,6 @@ def main_wo_model_loading(
         image_dir: Path,
         as_half: bool = True,
         feature_path: Optional[Path] = None) -> Path:
-    logger.info('Extracting local features with configuration:'
-                f'\n{pprint.pformat(conf)}')
 
     ####################################
     # skips only database images #######
@@ -328,13 +328,12 @@ def main_wo_model_loading(
     ####################################
     ####################################
 
-    loader = ImageDataset(image_dir, conf['preprocessing'], image_list)
-    loader = torch.utils.data.DataLoader(loader, num_workers=1)
+    image_dataset = ImageDataset(image_dir, conf['preprocessing'], image_list)
+    loader = torch.utils.data.DataLoader(image_dataset, num_workers=1)
     if set(loader.dataset.names).issubset(set(skip_names)):
         logger.info('Skipping the extraction.')
         return feature_path
-
-    for data in tqdm(loader):
+    for data in loader:
         name = data['name'][0]  # remove batch dimension
         if name in skip_names:
             continue
@@ -375,7 +374,6 @@ def main_wo_model_loading(
 
         del pred
 
-    logger.info('Finished exporting features.')
     return feature_path
 
 

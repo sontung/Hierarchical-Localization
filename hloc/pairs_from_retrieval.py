@@ -90,10 +90,6 @@ def main(descriptors, output, num_matched,
         raise ValueError('Could not find any database image.')
     query_names = parse_names(query_prefix, query_list, query_names_h5)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    # print(db_names)
-    # print(len(db_names))
-    # print(query_names)
-    # sys.exit()
     db_desc = get_descriptors(db_names, db_descriptors, name2db)
     query_desc = get_descriptors(query_names, descriptors)
     sim = torch.einsum('id,jd->ij', query_desc.to(device), db_desc.to(device))
@@ -104,6 +100,21 @@ def main(descriptors, output, num_matched,
     pairs = [(query_names[i], db_names[j]) for i, j in pairs]
 
     logger.info(f'Found {len(pairs)} pairs.')
+    with open(output, 'w') as f:
+        f.write('\n'.join(' '.join([i, j]) for i, j in pairs))
+
+
+def main_wo_loading(descriptors, output, num_matched,
+                    db_names, db_desc, query_names, device):
+
+    query_desc = get_descriptors(query_names, descriptors)
+    sim = torch.einsum('id,jd->ij', query_desc.to(device), db_desc)
+
+    # Avoid self-matching
+    self = np.array(query_names)[:, None] == np.array(db_names)[None]
+    pairs = pairs_from_score_matrix(sim, self, num_matched, min_score=0)
+    pairs = [(query_names[i], db_names[j]) for i, j in pairs]
+
     with open(output, 'w') as f:
         f.write('\n'.join(' '.join([i, j]) for i, j in pairs))
 

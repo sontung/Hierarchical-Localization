@@ -8,7 +8,7 @@ import pycolmap
 
 from . import logger
 from .utils.database import COLMAPDatabase
-from .utils.io import get_keypoints, get_matches
+from .utils.io import get_keypoints, get_matches, get_descriptors
 
 
 class OutputCapture:
@@ -57,7 +57,9 @@ def import_features(image_ids, database_path, features_path):
     for image_name, image_id in tqdm(image_ids.items()):
         keypoints = get_keypoints(features_path, image_name)
         keypoints += 0.5  # COLMAP origin
+        descriptors = get_descriptors(features_path, image_name)
         db.add_keypoints(image_id, keypoints)
+        db.add_descriptors(image_id, descriptors)
 
     db.commit()
     db.close()
