@@ -96,7 +96,7 @@ confs = {
         },
         'preprocessing': {
             'grayscale': True,
-            'resize_max': 1600,
+            'resize_max': None,
         },
     },
     'sosnet': {
