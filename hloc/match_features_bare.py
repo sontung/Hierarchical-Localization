@@ -62,7 +62,7 @@ confs = {
 }
 
 
-def main(conf: Dict,
+def main(name2ref: Dict, conf: Dict,
          pairs: Path, features: Union[Path, str],
          export_dir: Optional[Path] = None,
          matches: Optional[Path] = None,
@@ -89,10 +89,35 @@ def main(conf: Dict,
         features_ref = list(features_ref)
     else:
         features_ref = [features_ref]
-
-    match_from_paths(conf, pairs, matches, features_q, features_ref, overwrite)
+    match_from_paths(conf, pairs, matches, features_q, features_ref, name2ref, overwrite)
 
     return matches
+
+
+def return_name2ref(features: Union[Path, str],
+                    export_dir: Optional[Path] = None,
+                    matches: Optional[Path] = None,
+                    features_ref: Optional[Path] = None):
+    if isinstance(features, Path) or Path(features).exists():
+        features_q = features
+        if matches is None:
+            raise ValueError('Either provide both features and matches as Path'
+                             ' or both as names.')
+    else:
+        if export_dir is None:
+            raise ValueError('Provide an export_dir if features is not'
+                             f' a file path: {features}.')
+        features_q = Path(export_dir, features+'.h5')
+
+    if features_ref is None:
+        features_ref = features_q
+    if isinstance(features_ref, collections.Iterable):
+        features_ref = list(features_ref)
+    else:
+        features_ref = [features_ref]
+    name2ref = {n: i for i, p in enumerate(features_ref)
+                for n in list_h5_names(p)}
+    return name2ref
 
 
 def find_unique_new_pairs(pairs_all: List[Tuple[str]], match_path: Path = None):
@@ -122,6 +147,7 @@ def match_from_paths(conf: Dict,
                      match_path: Path,
                      feature_path_q: Path,
                      feature_paths_refs: Path,
+                     name2ref: Dict,
                      overwrite: bool = False) -> Path:
     logger.info('Matching local features with configuration:'
                 f'\n{pprint.pformat(conf)}')
@@ -131,8 +157,7 @@ def match_from_paths(conf: Dict,
     for path in feature_paths_refs:
         if not path.exists():
             raise FileNotFoundError(f'Reference feature file {path}.')
-    name2ref = {n: i for i, p in enumerate(feature_paths_refs)
-                for n in list_h5_names(p)}
+
     match_path.parent.mkdir(exist_ok=True, parents=True)
 
     assert pairs_path.exists(), pairs_path

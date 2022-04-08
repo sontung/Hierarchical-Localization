@@ -330,12 +330,14 @@ def main_wo_model_loading(
 
     image_dataset = ImageDataset(image_dir, conf['preprocessing'], image_list)
     loader = torch.utils.data.DataLoader(image_dataset, num_workers=1)
+    skip = 0
     if set(loader.dataset.names).issubset(set(skip_names)):
         logger.info('Skipping the extraction.')
         return feature_path
     for data in loader:
         name = data['name'][0]  # remove batch dimension
         if name in skip_names:
+            skip += 1
             continue
 
         pred = model(map_tensor(data, lambda x: x.to(device)))
@@ -373,7 +375,7 @@ def main_wo_model_loading(
                 raise error
 
         del pred
-
+    logger.info(f"Skipped {skip} images.")
     return feature_path
 
 

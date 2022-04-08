@@ -144,7 +144,6 @@ class COLMAPDatabase(sqlite3.Connection):
     def connect(database_path):
         return sqlite3.connect(str(database_path), factory=COLMAPDatabase)
 
-
     def __init__(self, *args, **kwargs):
         super(COLMAPDatabase, self).__init__(*args, **kwargs)
 
