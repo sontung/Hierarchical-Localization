@@ -149,8 +149,6 @@ def match_from_paths(conf: Dict,
                      feature_paths_refs: Path,
                      name2ref: Dict,
                      overwrite: bool = False) -> Path:
-    logger.info('Matching local features with configuration:'
-                f'\n{pprint.pformat(conf)}')
 
     if not feature_path_q.exists():
         raise FileNotFoundError(f'Query feature file {feature_path_q}.')
@@ -169,7 +167,7 @@ def match_from_paths(conf: Dict,
     Model = dynamic_load(matchers, conf['model']['name'])
     model = Model(conf['model']).eval().to(device)
 
-    for (name0, name1) in tqdm(pairs, smoothing=.1):
+    for (name0, name1) in pairs:
         data = {}
         with h5py.File(str(feature_path_q), 'r') as fd:
             grp = fd[name0]
@@ -196,8 +194,6 @@ def match_from_paths(conf: Dict,
             if 'matching_scores0' in pred:
                 scores = pred['matching_scores0'][0].cpu().half().numpy()
                 grp.create_dataset('matching_scores0', data=scores)
-
-    logger.info('Finished exporting matches.')
 
 
 if __name__ == '__main__':

@@ -375,7 +375,6 @@ def main_wo_model_loading(
                 raise error
 
         del pred
-    logger.info(f"Skipped {skip} images.")
     return feature_path
 
 

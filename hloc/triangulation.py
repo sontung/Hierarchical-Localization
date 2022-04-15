@@ -51,10 +51,9 @@ def create_db_from_model(reconstruction, database_path):
 
 
 def import_features(image_ids, database_path, features_path):
-    logger.info('Importing features into the database...')
     db = COLMAPDatabase.connect(database_path)
 
-    for image_name, image_id in tqdm(image_ids.items()):
+    for image_name, image_id in image_ids.items():
         keypoints = get_keypoints(features_path, image_name)
         keypoints += 0.5  # COLMAP origin
         descriptors = get_descriptors(features_path, image_name)
@@ -67,7 +66,6 @@ def import_features(image_ids, database_path, features_path):
 
 def import_matches(image_ids, database_path, pairs_path, matches_path,
                    min_match_score=None, skip_geometric_verification=False):
-    logger.info('Importing matches into the database...')
 
     with open(str(pairs_path), 'r') as f:
         pairs = [p.split() for p in f.readlines()]
@@ -75,7 +73,7 @@ def import_matches(image_ids, database_path, pairs_path, matches_path,
     db = COLMAPDatabase.connect(database_path)
 
     matched = set()
-    for name0, name1 in tqdm(pairs):
+    for name0, name1 in pairs:
         id0, id1 = image_ids[name0], image_ids[name1]
         if len({(id0, id1), (id1, id0)} & matched) > 0:
             continue
