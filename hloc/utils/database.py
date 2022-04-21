@@ -125,17 +125,11 @@ def pair_id_to_image_ids(pair_id):
 
 
 def array_to_blob(array):
-    if IS_PYTHON3:
-        return array.tobytes()
-    else:
-        return np.getbuffer(array)
+    return array.tobytes()
 
 
 def blob_to_array(blob, dtype, shape=(-1,)):
-    if IS_PYTHON3:
-        return np.fromstring(blob, dtype=dtype).reshape(*shape)
-    else:
-        return np.frombuffer(blob, dtype=dtype).reshape(*shape)
+    return np.frombuffer(blob, dtype=dtype).reshape(*shape)
 
 
 class COLMAPDatabase(sqlite3.Connection):
@@ -183,17 +177,17 @@ class COLMAPDatabase(sqlite3.Connection):
     def add_keypoints(self, image_id, keypoints):
         assert(len(keypoints.shape) == 2)
         assert(keypoints.shape[1] in [2, 4, 6])
-
-        keypoints = np.asarray(keypoints, np.float32)
+        keypoints = np.asarray(keypoints, type(keypoints[0][0]))
         self.execute(
             "INSERT INTO keypoints VALUES (?, ?, ?, ?)",
             (image_id,) + keypoints.shape + (array_to_blob(keypoints),))
 
     def add_descriptors(self, image_id, descriptors):
-        descriptors = np.ascontiguousarray(descriptors, np.uint8)
+        descriptors = np.ascontiguousarray(descriptors, type(descriptors[0][0]))
+        blob = array_to_blob(descriptors)
         self.execute(
             "INSERT INTO descriptors VALUES (?, ?, ?, ?)",
-            (image_id,) + descriptors.shape + (array_to_blob(descriptors),))
+            (image_id,) + descriptors.shape + (blob,))
 
     def add_matches(self, image_id1, image_id2, matches):
         assert(len(matches.shape) == 2)

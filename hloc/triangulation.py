@@ -52,16 +52,21 @@ def create_db_from_model(reconstruction, database_path):
 
 def import_features(image_ids, database_path, features_path):
     db = COLMAPDatabase.connect(database_path)
-
+    desc_type = None
+    kp_type = None
     for image_name, image_id in image_ids.items():
         keypoints = get_keypoints(features_path, image_name)
         keypoints += 0.5  # COLMAP origin
         descriptors = get_descriptors(features_path, image_name)
+        if desc_type is None:
+            desc_type = type(descriptors[0][0]), descriptors.shape[0]
+            kp_type = type(keypoints[0][0]), keypoints.shape[1]
         db.add_keypoints(image_id, keypoints)
         db.add_descriptors(image_id, descriptors)
 
     db.commit()
     db.close()
+    return desc_type, kp_type
 
 
 def import_matches(image_ids, database_path, pairs_path, matches_path,
