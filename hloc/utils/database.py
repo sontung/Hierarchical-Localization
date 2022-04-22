@@ -178,16 +178,19 @@ class COLMAPDatabase(sqlite3.Connection):
         assert(len(keypoints.shape) == 2)
         assert(keypoints.shape[1] in [2, 4, 6])
         keypoints = np.asarray(keypoints, type(keypoints[0][0]))
+        blob = array_to_blob(keypoints)
         self.execute(
-            "INSERT INTO keypoints VALUES (?, ?, ?, ?)",
-            (image_id,) + keypoints.shape + (array_to_blob(keypoints),))
+            "INSERT INTO keypoints(image_id, rows, cols, data) VALUES(?, ?, ?, ?) "
+            "ON CONFLICT(image_id) DO UPDATE SET rows=?, cols=?, data=?;",
+            (image_id,) + keypoints.shape + (blob,) + keypoints.shape + (blob,))
 
     def add_descriptors(self, image_id, descriptors):
         descriptors = np.ascontiguousarray(descriptors, type(descriptors[0][0]))
         blob = array_to_blob(descriptors)
         self.execute(
-            "INSERT INTO descriptors VALUES (?, ?, ?, ?)",
-            (image_id,) + descriptors.shape + (blob,))
+            "INSERT INTO descriptors(image_id, rows, cols, data) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(image_id) DO UPDATE SET rows=?, cols=?, data=?;",
+            (image_id,) + descriptors.shape + (blob,) + descriptors.shape + (blob,))
 
     def add_matches(self, image_id1, image_id2, matches):
         assert(len(matches.shape) == 2)
