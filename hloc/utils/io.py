@@ -72,3 +72,15 @@ def get_matches(path: Path, name0: str, name1: str) -> Tuple[np.ndarray]:
         matches = np.flip(matches, -1)
     scores = scores[idx]
     return matches, scores
+
+
+def get_matches_wo_loading(hfile: h5py.File, name0: str, name1: str):
+    pair, reverse = find_pair(hfile, name0, name1)
+    matches = hfile[pair]['matches0'].__array__()
+    scores = hfile[pair]['matching_scores0'].__array__()
+    idx = np.where(matches != -1)[0]
+    matches = np.stack([idx, matches[idx]], -1)
+    if reverse:
+        matches = np.flip(matches, -1)
+    scores = scores[idx]
+    return matches, scores
