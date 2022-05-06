@@ -68,10 +68,11 @@ class DoG(BaseModel):
         'vlfeat': {
             'num_octaves': 4,
             'octave_resolution': 3,
-            'first_octave': 0,
-            'edge_thresh': 10,
-            'peak_thresh': 0.01,
-            'upright': False,
+            # "use_gpu": False
+            # 'first_octave': 0,
+            # 'edge_thresh': 10,
+            # 'peak_thresh': 0.01,
+            # 'upright': False,
         },
         'descriptor': 'rootsift',
         'max_keypoints': -1,

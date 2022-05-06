@@ -329,7 +329,7 @@ def main_wo_model_loading(
     ####################################
 
     image_dataset = ImageDataset(image_dir, conf['preprocessing'], image_list)
-    loader = torch.utils.data.DataLoader(image_dataset, num_workers=1)
+    loader = torch.utils.data.DataLoader(image_dataset, num_workers=0)
     skip = 0
     if set(loader.dataset.names).issubset(set(skip_names)):
         logger.info('Skipping the extraction.')
