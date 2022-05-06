@@ -334,6 +334,8 @@ def main_wo_model_loading(
     if set(loader.dataset.names).issubset(set(skip_names)):
         logger.info('Skipping the extraction.')
         return feature_path
+    if len(loader) > 100:
+        loader = tqdm(loader, desc="Extracting images")
     for data in loader:
         name = data['name'][0]  # remove batch dimension
         if name in skip_names:
