@@ -94,27 +94,12 @@ def main(name2ref: Dict, conf: Dict,
     return matches
 
 
-def return_name2ref(features: Union[Path, str],
-                    export_dir: Optional[Path] = None,
-                    matches: Optional[Path] = None,
-                    features_ref: Optional[Path] = None):
-    if isinstance(features, Path) or Path(features).exists():
-        features_q = features
-        if matches is None:
-            raise ValueError('Either provide both features and matches as Path'
-                             ' or both as names.')
+def return_name2ref(features: Union[Path, str]):
+    features_q = features
+    if isinstance(features_q, collections.Iterable):
+        features_ref = list(features_q)
     else:
-        if export_dir is None:
-            raise ValueError('Provide an export_dir if features is not'
-                             f' a file path: {features}.')
-        features_q = Path(export_dir, features+'.h5')
-
-    if features_ref is None:
-        features_ref = features_q
-    if isinstance(features_ref, collections.Iterable):
-        features_ref = list(features_ref)
-    else:
-        features_ref = [features_ref]
+        features_ref = [features_q]
     name2ref = {n: i for i, p in enumerate(features_ref)
                 for n in list_h5_names(p)}
     return name2ref
@@ -142,6 +127,7 @@ def find_unique_new_pairs(pairs_all: List[Tuple[str]], match_path: Path = None):
 
 
 @torch.no_grad()
+# @profile
 def match_from_paths(conf: Dict,
                      pairs_path: Path,
                      match_path: Path,
@@ -166,7 +152,8 @@ def match_from_paths(conf: Dict,
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     Model = dynamic_load(matchers, conf['model']['name'])
     model = Model(conf['model']).eval().to(device)
-
+    if len(pairs) > 100:
+        pairs = tqdm(pairs, desc="Matching")
     for (name0, name1) in pairs:
         data = {}
         with h5py.File(str(feature_path_q), 'r') as fd:

@@ -380,6 +380,61 @@ def main_wo_model_loading(
     return feature_path
 
 
+@torch.no_grad()
+def main_wo_model_loading_image_list(
+        model,
+        device,
+        image_list,
+        conf: Dict,
+        image_dir: Path,
+        as_half: bool = True,
+        feature_path: Optional[Path] = None) -> Path:
+
+    image_dataset = ImageDataset(image_dir, conf['preprocessing'], image_list)
+    loader = torch.utils.data.DataLoader(image_dataset, num_workers=0)
+    if len(loader) > 100:
+        loader = tqdm(loader, desc="Extracting images")
+    for data in loader:
+        name = data['name'][0]  # remove batch dimension
+
+        pred = model(map_tensor(data, lambda x: x.to(device)))
+        pred = {k: v[0].cpu().numpy() for k, v in pred.items()}
+
+        pred['image_size'] = original_size = data['original_size'][0].numpy()
+        if 'keypoints' in pred:
+            size = np.array(data['image'].shape[-2:][::-1])
+            scales = (original_size / size).astype(np.float32)
+            pred['keypoints'] = (pred['keypoints'] + .5) * scales[None] - .5
+            # add keypoint uncertainties scaled to the original resolution
+            uncertainty = getattr(model, 'detection_noise', 1) * scales.mean()
+
+        if as_half:
+            for k in pred:
+                dt = pred[k].dtype
+                if (dt == np.float32) and (dt != np.float16):
+                    pred[k] = pred[k].astype(np.float16)
+
+        with h5py.File(str(feature_path), 'a') as fd:
+            try:
+                if name in fd:
+                    del fd[name]
+                grp = fd.create_group(name)
+                for k, v in pred.items():
+                    grp.create_dataset(k, data=v)
+                if 'keypoints' in pred:
+                    grp['keypoints'].attrs['uncertainty'] = uncertainty
+            except OSError as error:
+                if 'No space left on device' in error.args[0]:
+                    logger.error(
+                        'Out of disk space: storing features on disk can take '
+                        'significant space, did you enable the as_half flag?')
+                    del grp, fd[name]
+                raise error
+
+        del pred
+    return feature_path
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--image_dir', type=Path, required=True)
