@@ -12,7 +12,6 @@ from .utils.base_model import dynamic_load
 from .utils.parsers import names_to_pair, names_to_pair_old, parse_retrieval
 from .utils.io import list_h5_names
 
-
 '''
 A set of standard configurations that can be directly selected from the command
 line using their name. Each is a dictionary with the following entries:
@@ -67,8 +66,8 @@ def main(name2ref: Dict, conf: Dict,
          export_dir: Optional[Path] = None,
          matches: Optional[Path] = None,
          features_ref: Optional[Path] = None,
+         matching_feature_file=None,
          overwrite: bool = False) -> Path:
-
     if isinstance(features, Path) or Path(features).exists():
         features_q = features
         if matches is None:
@@ -78,7 +77,7 @@ def main(name2ref: Dict, conf: Dict,
         if export_dir is None:
             raise ValueError('Provide an export_dir if features is not'
                              f' a file path: {features}.')
-        features_q = Path(export_dir, features+'.h5')
+        features_q = Path(export_dir, features + '.h5')
         if matches is None:
             matches = Path(
                 export_dir, f'{features}_{conf["output"]}_{pairs.stem}.h5')
@@ -89,7 +88,8 @@ def main(name2ref: Dict, conf: Dict,
         features_ref = list(features_ref)
     else:
         features_ref = [features_ref]
-    match_from_paths(conf, pairs, matches, features_q, features_ref, name2ref, overwrite)
+    # match_from_paths(conf, pairs, matches, features_q, features_ref, name2ref, overwrite)
+    match_from_paths_fast(conf, pairs, matches, features_q, features_ref, name2ref, matching_feature_file, overwrite)
 
     return matches
 
@@ -127,7 +127,6 @@ def find_unique_new_pairs(pairs_all: List[Tuple[str]], match_path: Path = None):
 
 
 @torch.no_grad()
-# @profile
 def match_from_paths(conf: Dict,
                      pairs_path: Path,
                      match_path: Path,
@@ -135,7 +134,6 @@ def match_from_paths(conf: Dict,
                      feature_paths_refs: Path,
                      name2ref: Dict,
                      overwrite: bool = False) -> Path:
-
     if not feature_path_q.exists():
         raise FileNotFoundError(f'Query feature file {feature_path_q}.')
     for path in feature_paths_refs:
@@ -159,14 +157,14 @@ def match_from_paths(conf: Dict,
         with h5py.File(str(feature_path_q), 'r') as fd:
             grp = fd[name0]
             for k, v in grp.items():
-                data[k+'0'] = torch.from_numpy(v.__array__()).float().to(device)
+                data[k + '0'] = torch.from_numpy(v.__array__()).float().to(device)
             # some matchers might expect an image but only use its size
-            data['image0'] = torch.empty((1,)+tuple(grp['image_size'])[::-1])
+            data['image0'] = torch.empty((1,) + tuple(grp['image_size'])[::-1])
         with h5py.File(str(feature_paths_refs[name2ref[name1]]), 'r') as fd:
             grp = fd[name1]
             for k, v in grp.items():
-                data[k+'1'] = torch.from_numpy(v.__array__()).float().to(device)
-            data['image1'] = torch.empty((1,)+tuple(grp['image_size'])[::-1])
+                data[k + '1'] = torch.from_numpy(v.__array__()).float().to(device)
+            data['image1'] = torch.empty((1,) + tuple(grp['image_size'])[::-1])
         data = {k: v[None] for k, v in data.items()}
 
         pred = model(data)
@@ -181,6 +179,82 @@ def match_from_paths(conf: Dict,
             if 'matching_scores0' in pred:
                 scores = pred['matching_scores0'][0].cpu().half().numpy()
                 grp.create_dataset('matching_scores0', data=scores)
+
+
+@torch.no_grad()
+def match_from_paths_fast(conf: Dict,
+                          pairs_path: Path,
+                          match_path: Path,
+                          feature_path_q: Path,
+                          feature_paths_refs: Path,
+                          name2ref: Dict,
+                          matching_feature_file,
+                          overwrite: bool = False) -> Path:
+    """
+    Don't use this function
+    """
+
+    if not feature_path_q.exists():
+        raise FileNotFoundError(f'Query feature file {feature_path_q}.')
+    for path in feature_paths_refs:
+        if not path.exists():
+            raise FileNotFoundError(f'Reference feature file {path}.')
+
+    match_path.parent.mkdir(exist_ok=True, parents=True)
+
+    assert pairs_path.exists(), pairs_path
+    pairs = parse_retrieval(pairs_path)
+    pairs = [(q, r) for q, rs in pairs.items() for r in rs]
+    pairs = find_unique_new_pairs(pairs, None if overwrite else match_path)
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    Model = dynamic_load(matchers, conf['model']['name'])
+    model = Model(conf['model']).eval().to(device)
+    if len(pairs) > 100:
+        pairs = tqdm(pairs, desc="Matching")
+
+    fd_file = h5py.File(str(feature_path_q), 'r')
+    fd_file2 = h5py.File(str(match_path), 'a')
+    query_data = {}
+    grp = fd_file["query/query.jpg"]
+    for k, v in grp.items():
+        query_data[k] = torch.from_numpy(v.__array__()).float().to(device)
+
+    for (name0, name1) in pairs:
+        data = {}
+        if "query" in name0:
+            grp = fd_file[name0]
+            for k, v in grp.items():
+                data[k + '0'] = query_data[k]
+            data['image0'] = torch.empty((1,) + tuple(grp['image_size'])[::-1])
+
+            grp2 = matching_feature_file[name1]
+            for k, v in grp2.items():
+                data[k + '1'] = v
+            data['image1'] = torch.empty((1,) + tuple(fd_file[name1]['image_size'])[::-1])
+        else:
+            grp = matching_feature_file[name0]
+            for k, v in grp.items():
+                data[k + '0'] = v
+            data['image0'] = torch.empty((1,) + tuple(fd_file[name0]['image_size'])[::-1])
+
+            grp = fd_file[name1]
+            for k, v in grp.items():
+                data[k + '1'] = query_data[k]
+            data['image1'] = torch.empty((1,) + tuple(grp['image_size'])[::-1])
+
+        data = {k: v[None] for k, v in data.items()}
+
+        pred = model(data)
+        pair = names_to_pair(name0, name1)
+
+        if pair in fd_file2:
+            del fd_file2[pair]
+        grp = fd_file2.create_group(pair)
+        matches = pred['matches0'][0].cpu().short().numpy()
+        grp.create_dataset('matches0', data=matches)
+    fd_file.close()
+    fd_file2.close()
 
 
 if __name__ == '__main__':
