@@ -94,6 +94,37 @@ def main(name2ref: Dict, conf: Dict,
     return matches
 
 
+def main_evaluation(name2ref: Dict, conf: Dict,
+                    pairs: Path, features: Union[Path, str],
+                    export_dir: Optional[Path] = None,
+                    matches: Optional[Path] = None,
+                    features_ref: Optional[Path] = None,
+                    overwrite: bool = False) -> Path:
+    if isinstance(features, Path) or Path(features).exists():
+        features_q = features
+        if matches is None:
+            raise ValueError('Either provide both features and matches as Path'
+                             ' or both as names.')
+    else:
+        if export_dir is None:
+            raise ValueError('Provide an export_dir if features is not'
+                             f' a file path: {features}.')
+        features_q = Path(export_dir, features + '.h5')
+        if matches is None:
+            matches = Path(
+                export_dir, f'{features}_{conf["output"]}_{pairs.stem}.h5')
+
+    if features_ref is None:
+        features_ref = features_q
+    if isinstance(features_ref, collections.Iterable):
+        features_ref = list(features_ref)
+    else:
+        features_ref = [features_ref]
+    match_from_paths(conf, pairs, matches, features_q, features_ref, name2ref, overwrite)
+
+    return matches
+
+
 def return_name2ref(features: Union[Path, str]):
     features_q = features
     if isinstance(features_q, collections.Iterable):
