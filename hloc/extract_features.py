@@ -335,7 +335,7 @@ def main_wo_model_loading(
         logger.info('Skipping the extraction.')
         return feature_path
     if len(loader) > 100:
-        loader = tqdm(loader, desc="Extracting images")
+        loader = tqdm(loader, desc="Extracting keypoints from images")
     for data in loader:
         name = data['name'][0]  # remove batch dimension
         if name in skip_names:
@@ -393,7 +393,7 @@ def main_wo_model_loading_image_list(
     image_dataset = ImageDataset(image_dir, conf['preprocessing'], image_list)
     loader = torch.utils.data.DataLoader(image_dataset, num_workers=0)
     if len(loader) > 100:
-        loader = tqdm(loader, desc="Extracting images")
+        loader = tqdm(loader, desc="Extracting keypoints from images")
     for data in loader:
         name = data['name'][0]  # remove batch dimension
 
