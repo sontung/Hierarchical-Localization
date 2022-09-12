@@ -1,6 +1,6 @@
 import kornia
 from kornia.feature.laf import (
-    laf_from_center_scale_ori, raise_error_if_laf_is_not_valid,
+    laf_from_center_scale_ori,
     normalize_laf, denormalize_laf, get_laf_scale,
     generate_patch_grid_from_normalized_LAF, pyrdown)
 import numpy as np
@@ -22,7 +22,6 @@ def extract_patches_from_pyramid(
     Copied from kornia.feature.laf.extract_patches_from_pyramid with one minor
     difference - highlighted below.
     """
-    raise_error_if_laf_is_not_valid(laf)
     if normalize_lafs_before_extraction:
         nlaf: torch.Tensor = normalize_laf(laf, img)
     else:
